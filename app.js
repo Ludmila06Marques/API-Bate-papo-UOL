@@ -12,52 +12,75 @@ import joi from 'joi'
 
 	const cliente= new MongoClient(process.env.URL_MONGO)
 
+    const data_name= joi.object({
+    name:joi.string().required(),
+    lastStatus: joi.number()
+    })
+
 
 
 	let dbp
-    let dbm
+  
 
 	cliente.connect().then(()=>{
 	dbp=cliente.db("participants")
 	})
     cliente.connect().then(()=>{
-    dbm=cliente.db("messages")
+    dbp=cliente.db("messages")
     })
 
-	
+    app.post(`/participants`, async(req,res)=>{
+      
+        const participante={
+            ...req.body, 
+            lastStatus: Date.now() 
+        }
 
-//Pegar participantes 
+       const itsOk=data_name.validate(participante, {abortEarly: false})
+       if(itsOk.error){
+        console.log(itsOk.error.details)
+            res.sendStatus(422)
+            return;
+        }
+       
+       try {
+        const participantes = await dbp.collection('participants').find().toArray();
+       const verify= participantes.map(item => item.name === req.body)
+        if(verify){
+            res.sendStatus(409)
+            return;
+        }else{
+         await dbp.collection('participants').insertOne(participante)
+         res.sendStatus(201)
+            
+        }
+        
+       } catch (error) {
+        console.log(error.message)
+        res.send("deu ruim")
+        
+       }
 
-		app.get(``, async (req,res)=>{
 
-            try{
+        res.send()
+    })
 
-            console.log("to pegando")
-            const participantes= await dbp.collection("participants").find().toArray();
-		    res.send(participantes)
-           
-            }catch(err){
-                res.status(500).send("Peguei nao")
-            }
+    app.get(`/participants`, async (req,res)=>{
+
+        try{
+
+        console.log("to pegando")
+        const participantes= await dbp.collection("participants").find().toArray();
+        res.send(participantes)
+       
+        }catch(err){
+            res.status(500).send("Peguei nao")
+        }
 
 
 
-		})
+    })
 
-//Pegar mensagens
-        app.get(``, async (req,res)=>{
-
-            try {
-                console.log("to pegando")
-                const mensagens= await dbp.collection("messages").find().toArray();
-                res.send(mensagens)
-                
-            } catch (err) {
-                res.status(500).send("Peguei nao")                
-            }
-
-          
-        })
 
 
 		app.listen(5000 ,()=>{
