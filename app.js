@@ -34,13 +34,13 @@ import dayjs from "dayjs"
         const { error } = participanteSchema.validate(participante) 
         if (error) {
          res.sendStatus(422)
-          return 
+          return; 
         } 
         try {
         const exists = await db.collection("participants").findOne({ name: participante.name })
           if (exists) {
             res.sendStatus(409)
-            return 
+            return; 
           }
       
           await db.collection("participants").insertOne({ name: participante.name, lastStatus: Date.now() })
@@ -118,13 +118,14 @@ import dayjs from "dayjs"
         if(error){
             console.log(error)
                 res.sendStatus(422)
-                return
+                return;
             }
 
       try {
         const participante = await db.collection("participants").findOne({ name: user })
         if (!participante) {
-        return res.sendStatus(422)
+            res.sendStatus(422)
+             return;
         }
 
         await db.collection('messages').insertOne(message)
@@ -155,6 +156,32 @@ import dayjs from "dayjs"
         }
       })
       
+ const checar_time = 15 * 1000 
+   setInterval(async () => {
+  const time = Date.now() - (10 * 1000) 
+  try {
+
+
+    const inactiveP = await db.collection("participants").find({ lastStatus: { $lte: time } }).toArray()
+    if (inactiveP.length > 0) {
+      const inactiveM = inactiveP.map(inactiveP => {
+        return {
+          from: inactiveP.name,
+          to: 'Todos',
+          text: 'sai da sala...',
+          type: 'status',
+          time:data
+        }
+      })
+     
+      await db.collection("participants").deleteMany({ lastStatus: { $lte: time } })
+      await db.collection("messages").insertMany(inactiveM)
+    }
+  } catch (e) {
+   
+   res.send("deu ruim")
+  }
+}, checar_time)
     
 
 
